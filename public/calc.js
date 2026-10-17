@@ -6,10 +6,11 @@ export const LB_PER_KG = 2.2046226218487757;
 const isPos = (n) => Number.isFinite(n) && n > 0;
 
 // 输入校验：返回 { value, error }，空值 value 为 null 且无错误
-export function parseInput(raw, { min = 0, max = Infinity, allowZero = false } = {}) {
+export function parseInput(raw, { min = 0, max = Infinity, allowZero = false, decimals = Infinity } = {}) {
   const text = String(raw ?? '').trim().replace(/,/g, '');
   if (text === '') return { value: null, error: null };
   if (!/^\d*\.?\d+$/.test(text)) return { value: null, error: '请输入数字' };
+  if ((text.split('.')[1] || '').length > decimals) return { value: null, error: `最多 ${decimals} 位小数` };
   const n = Number(text);
   if (!Number.isFinite(n)) return { value: null, error: '请输入数字' };
   if (allowZero ? n < 0 : n <= 0) return { value: null, error: allowZero ? '不能为负数' : '必须大于 0' };

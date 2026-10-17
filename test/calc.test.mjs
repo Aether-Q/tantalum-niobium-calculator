@@ -95,6 +95,9 @@ test('AC07 非法输入给出提示，边界值可用', () => {
   assert.ok(parseInput('abc').error);
   assert.equal(parseInput('2.35').value, 2.35);
   assert.equal(parseInput('0', { allowZero: true }).value, 0);
+  const g2 = { min: 1, max: 50, decimals: 2 };
+  assert.equal(parseInput('30.25', g2).value, 30.25);
+  assert.ok(parseInput('30.255', g2).error);
   assert.equal(parseInput('').value, null);
   assert.equal(parseInput('').error, null);
 });

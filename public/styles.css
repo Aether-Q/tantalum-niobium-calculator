@@ -30,14 +30,18 @@ body {
 }
 .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 h1, h2, h3, h4 { margin: 0; letter-spacing: -.01em; }
-h1 { font-size: 28px; font-weight: 700; }
+h1 { font-size: 24px; font-weight: 600; letter-spacing: .02em; }
 h2 { font-size: 19px; font-weight: 650; }
 h3 { font-size: 17px; font-weight: 650; }
 p { margin: 0; }
 [hidden] { display: none !important; }
 
 .page { max-width: 1200px; margin: 0 auto; padding: 28px 24px 48px; }
-.page-head { margin-bottom: 18px; }
+.page-head { display: flex; align-items: center; gap: 12px; padding: 4px 24px 0; margin-bottom: 20px; }
+.mark {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 10px;
+  background: var(--green); color: var(--lime); font-size: 16px; font-weight: 700; letter-spacing: -.02em;
+}
 
 .card {
   background: var(--card);
@@ -223,7 +227,9 @@ input[type="range"]::-moz-range-thumb {
 }
 @media (max-width: 680px) {
   .page { padding: 16px 12px 36px; }
-  h1 { font-size: 23px; }
+  h1 { font-size: 20px; }
+  .page-head { padding: 0 16px; gap: 10px; }
+  .mark { width: 32px; height: 32px; font-size: 14px; border-radius: 9px; }
   .card { padding: 16px; border-radius: 18px; }
   .big { font-size: 30px; }
   .market-grid, .ore-grid, .grid-2 { grid-template-columns: 1fr; }

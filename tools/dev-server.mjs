@@ -36,7 +36,7 @@ createServer(async (req, res) => {
   if (url.pathname === '/__demo') {
     // 仅本地预览：自动填入 PRD 第 5 节样例，便于截图检查
     const html = await readFile(join(root, 'index.html'), 'utf8');
-    const fill = `<script type="module">setTimeout(()=>{const s=(id,v)=>{const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))};s('in-grade','30');s('in-ton','2.3');s('in-a','6');s('in-c','4.8');${url.searchParams.get('tax') === 'inc' ? "document.querySelector('#seg-tax [data-v=inc]').click();" : ''}${url.searchParams.get('cur') === 'cny' ? "document.querySelector('#seg-cur [data-v=cny]').click();" : ''}},300)</script>`;
+    const fill = `<script type="module">setTimeout(()=>{const s=(id,v)=>{const e=document.getElementById(id);e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))};s('in-grade','30.00');s('in-ton','2.3');s('in-a','6');s('in-c','4.8');${url.searchParams.get('tax') === 'inc' ? "document.querySelector('#seg-tax [data-v=inc]').click();" : ''}${url.searchParams.get('cur') === 'cny' ? "document.querySelector('#seg-cur [data-v=cny]').click();" : ''}},300)</script>`;
     res.writeHead(200, { 'content-type': types['.html'], 'cache-control': 'no-store' });
     res.end(html.replace('</body>', fill + '</body>'));
     return;

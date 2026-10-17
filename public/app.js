@@ -2,6 +2,7 @@ import { computeAll, parseInput } from './calc.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+const GRADE = { min: 1, max: 50, decimals: 2 };
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 // 页面状态只存在内存中，刷新或重开即清空
@@ -70,7 +71,7 @@ function readInputs() {
     P: quoteValue('smm'),
     R: quoteValue('fx'),
     v: v == null ? null : v / 100,
-    G: readField($('#in-grade'), $('#err-grade'), { min: 1, max: 50 }),
+    G: readField($('#in-grade'), $('#err-grade'), GRADE),
     T: readField($('#in-ton'), $('#err-ton'), {}),
     A: readField($('#in-a'), $('#err-a'), {}),
     C: readField($('#in-c'), $('#err-c'), {}),
@@ -217,7 +218,7 @@ async function loadMarket() {
 function bind() {
   const form = $('#calc');
   form.addEventListener('input', (e) => {
-    if (e.target.id === 'in-grade-range') $('#in-grade').value = e.target.value;
+    if (e.target.id === 'in-grade-range') $('#in-grade').value = Number(e.target.value).toFixed(2);
     recalc();
   });
 
@@ -230,7 +231,7 @@ function bind() {
   chips.addEventListener('click', (e) => {
     const b = e.target.closest('button');
     if (!b) return;
-    $('#in-grade').value = b.dataset.g;
+    $('#in-grade').value = Number(b.dataset.g).toFixed(2);
     recalc();
   });
 
@@ -263,6 +264,12 @@ function bind() {
   });
   seg('#seg-tax', 'tax');
   seg('#seg-cur', 'cur');
+
+  // 品位按第三方化验报告习惯显示两位小数
+  $('#in-grade').addEventListener('blur', (e) => {
+    const { value } = parseInput(e.target.value, GRADE);
+    if (value != null) e.target.value = value.toFixed(2);
+  });
 
   $('#btn-refresh').addEventListener('click', loadMarket);
 
