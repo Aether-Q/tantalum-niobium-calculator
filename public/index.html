@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>钽铌矿实时价格计算器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="page">
+  <header class="page-head">
+    <h1>钽铌矿实时价格计算器</h1>
+  </header>
+
+  <form id="calc" autocomplete="off" onsubmit="return false">
+
+  <!-- ① 市场参考价 -->
+  <section class="card market" aria-labelledby="h-market">
+    <h2 id="h-market">市场参考价</h2>
+    <div class="market-grid">
+      <div class="quote" id="q-smm">
+        <div class="quote-top">
+          <span class="label">上海有色报价</span>
+          <div class="seg seg-sm" role="group" aria-label="上海有色报价来源">
+            <button type="button" data-mode="auto" aria-pressed="true">自动</button>
+            <button type="button" data-mode="manual" aria-pressed="false">手动</button>
+          </div>
+        </div>
+        <div class="quote-value">
+          <span class="big num" data-role="auto-value">—</span>
+          <span class="field field-inline" data-role="manual-field" hidden>
+            <input class="num" data-role="manual-input" inputmode="decimal" placeholder="今日 SMM 均价" aria-label="手动输入上海有色报价">
+          </span>
+          <span class="unit">美元/磅</span>
+        </div>
+        <p class="meta" data-role="meta">正在读取…</p>
+        <p class="error" data-role="error" hidden></p>
+      </div>
+
+      <div class="quote" id="q-fx">
+        <div class="quote-top">
+          <span class="label">美元兑人民币</span>
+          <div class="seg seg-sm" role="group" aria-label="汇率来源">
+            <button type="button" data-mode="auto" aria-pressed="true">自动</button>
+            <button type="button" data-mode="manual" aria-pressed="false">手动</button>
+          </div>
+        </div>
+        <div class="quote-value">
+          <span class="big num" data-role="auto-value">—</span>
+          <span class="field field-inline" data-role="manual-field" hidden>
+            <input class="num" data-role="manual-input" inputmode="decimal" placeholder="如 7.1000" aria-label="手动输入汇率">
+          </span>
+          <span class="unit">人民币/美元</span>
+        </div>
+        <p class="meta" data-role="meta">正在读取…</p>
+        <p class="error" data-role="error" hidden></p>
+      </div>
+
+      <div class="quote quote-tax">
+        <label class="label" for="in-tax">增值税率</label>
+        <span class="field">
+          <input id="in-tax" class="num" inputmode="decimal" value="13">
+          <span class="suffix">%</span>
+        </span>
+        <p class="error" id="err-tax" hidden></p>
+        <button type="button" class="link" id="btn-refresh">刷新行情</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② 本批矿石信息 -->
+  <section class="card ore" aria-labelledby="h-ore">
+    <h2 id="h-ore">本批矿石信息</h2>
+    <div class="ore-grid">
+      <div class="ore-grade">
+        <label class="label" for="in-grade">Ta<sub>2</sub>O<sub>5</sub> 品位</label>
+        <span class="field">
+          <input id="in-grade" class="num" inputmode="decimal" placeholder="1–50">
+          <span class="suffix">%</span>
+        </span>
+        <p class="error" id="err-grade" hidden></p>
+        <div class="slider">
+          <input type="range" id="in-grade-range" min="1" max="50" step="1" value="1" aria-label="品位滑块">
+          <div class="slider-ends"><span>1%</span><span>50%</span></div>
+        </div>
+      </div>
+      <div class="ore-chips">
+        <span class="label">快捷选择品位</span>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="ore-weight">
+        <label class="label" for="in-ton">本批矿石净重</label>
+        <span class="field">
+          <input id="in-ton" class="num" inputmode="decimal" placeholder="如 2.3">
+          <span class="suffix">吨</span>
+        </span>
+        <p class="error" id="err-ton" hidden></p>
+        <p class="meta" id="kg">折合 — 公斤</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ 本批次价格对比 -->
+  <div class="compare-head">
+    <div>
+      <h2>本批次价格对比</h2>
+      <p class="meta">吨度价固定为人民币/吨度；单价输入均为不含税美元/品位</p>
+    </div>
+    <div class="toggles">
+      <div class="seg" role="group" aria-label="税口径" id="seg-tax">
+        <button type="button" data-v="ex" aria-pressed="true">不含税</button>
+        <button type="button" data-v="inc" aria-pressed="false">含税</button>
+      </div>
+      <div class="seg" role="group" aria-label="币种" id="seg-cur">
+        <button type="button" data-v="usd" aria-pressed="true">美元</button>
+        <button type="button" data-v="cny" aria-pressed="false">人民币</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <section class="card price tone-plain" id="g-smm" aria-label="上海有色公示价格">
+      <h3>上海有色公示价格</h3>
+      <div class="hero-row"><span class="label">每吨价</span><span class="big num" data-k="perTon" data-anim>—</span><span class="unit" data-u="perTon"></span></div>
+      <ul class="rows">
+        <li><span class="label">每品位单价</span><span class="num v" data-k="perGrade">—</span><span class="unit">美元/品位</span></li>
+        <li><span class="label">吨度价</span><span class="num v" data-k="tonDegree">—</span><span class="unit">人民币/吨度</span></li>
+        <li><span class="label">本批总价</span><span class="num v" data-k="batch">—</span><span class="unit" data-u="batch"></span></li>
+      </ul>
+    </section>
+
+    <section class="card price tone-lime" id="g-contract" aria-label="合同价格">
+      <h3>合同价格</h3>
+      <div class="hero-row"><span class="label">每吨价</span><span class="big num" data-k="perTon" data-anim>—</span><span class="unit" data-u="perTon"></span></div>
+      <ul class="rows">
+        <li class="row-input">
+          <label class="label" for="in-a">每品位单价</label>
+          <span class="field field-edit"><input id="in-a" class="num" inputmode="decimal" placeholder="输入不含税单价"></span>
+          <span class="unit">美元/品位</span>
+          <span class="sub num" data-k="perGradeInc"></span>
+          <p class="error" id="err-a" hidden></p>
+        </li>
+        <li><span class="label">吨度价</span><span class="num v" data-k="tonDegree">—</span><span class="unit">人民币/吨度</span></li>
+        <li><span class="label">本批总价</span><span class="num v" data-k="batch">—</span><span class="unit" data-u="batch"></span></li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="cutline" role="separator"><span><b>内部数据</b> · 截图时从此处裁掉</span></div>
+
+  <div class="grid-2">
+    <section class="card price tone-green" id="g-ours" aria-label="我方批次价格">
+      <h3>我方批次价格</h3>
+      <div class="hero-row"><span class="label">每吨价</span><span class="big num" data-k="perTon" data-anim>—</span><span class="unit" data-u="perTon"></span></div>
+      <ul class="rows">
+        <li class="row-input">
+          <label class="label" for="in-c">每品位单价</label>
+          <span class="field field-edit"><input id="in-c" class="num" inputmode="decimal" placeholder="输入不含税单价"></span>
+          <span class="unit">美元/品位</span>
+          <span class="sub num" data-k="perGradeInc"></span>
+          <p class="error" id="err-c" hidden></p>
+        </li>
+        <li><span class="label">吨度价</span><span class="num v" data-k="tonDegree">—</span><span class="unit">人民币/吨度</span></li>
+        <li><span class="label">本批总价</span><span class="num v" data-k="batch">—</span><span class="unit" data-u="batch"></span></li>
+      </ul>
+    </section>
+
+    <section class="card profit" id="profit" aria-label="预期毛利">
+      <h3>本批预期毛利</h3>
+      <div class="profit-main"><span class="big num" id="pf-batch" data-anim>—</span><span class="unit">美元</span></div>
+      <p class="approx num" id="pf-batch-cny"></p>
+      <div class="profit-sub">
+        <span class="label">每吨毛利</span>
+        <div>
+          <div><span class="mid num" id="pf-ton" data-anim>—</span><span class="unit">美元/吨</span></div>
+          <p class="approx num" id="pf-ton-cny"></p>
+        </div>
+      </div>
+      <p class="note" id="pf-hint"></p>
+      <p class="note">每吨毛利 = 每吨不含税合同价格 − 每吨不含税我方批次价格；本批毛利 = 每吨毛利 × 本批吨数</p>
+      <p class="note strong">未扣除国内的运费等成本及其他费用</p>
+    </section>
+  </div>
+
+  </form>
+
+  <!-- ⑤ 数据来源与计算说明 -->
+  <details class="card explain">
+    <summary><span>数据来源与计算说明</span><span class="meta">展开</span></summary>
+    <div class="explain-body">
+      <h4>数据来源</h4>
+      <ul>
+        <li>上海有色：钽矿（Ta≥30%）中国到岸价均价，美元/磅（<a href="https://hq.smm.cn/other-minor-metals/category/202504100001" target="_blank" rel="noopener">SMM 品种页</a>）。每日北京时间 12:00 检查一次，未取得当天价则 13:00 补试一次。<span id="ex-smm"></span></li>
+        <li>汇率：ExchangeRate-API 每日参考汇率，不是银行成交汇率。<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a><span id="ex-fx"></span></li>
+        <li>页面始终显示真实报价日期；周末、节假日或尚未发布时沿用最近一次报价，不标为今日。</li>
+        <li>自动取数失败时保留上次有效值及原日期；可随时切换“手动”自行输入，手动值不会被自动刷新覆盖。</li>
+      </ul>
+      <h4>计算公式（X 为不含税美元/品位，G 为品位点数，T 为吨数，v 为税率，R 为汇率）</h4>
+      <ul class="formula">
+        <li>上海有色单价 X = 报价（美元/磅）× 2.20462 ÷ 100</li>
+        <li>含税单价 = X × (1 + v)</li>
+        <li>每吨价（美元/吨）= X × G × 1,000；人民币每吨价再 × R</li>
+        <li>吨度价（人民币/吨度）= X × 1,000 × R；含税再 × (1 + v)</li>
+        <li>本批总价 = 每吨价 × T</li>
+        <li>每吨毛利 = (合同单价 − 我方单价) × G × 1,000；本批毛利 = 每吨毛利 × T</li>
+      </ul>
+      <h4>适用边界</h4>
+      <ul>
+        <li>上海有色基准规格为 Ta≥30%；其他品位按线性测算，不等于该品位的实际成交报价。铌不参与计价。</li>
+        <li>合同价格栏可填写采购商报价，不代表合同已签署。毛利为不含税价差，未扣除国内的运费等成本及其他费用。</li>
+        <li>页面不保存任何输入，刷新或重新打开后需重新填写。</li>
+      </ul>
+    </div>
+  </details>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
