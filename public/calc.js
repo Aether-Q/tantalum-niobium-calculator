@@ -9,7 +9,7 @@ const isPos = (n) => Number.isFinite(n) && n > 0;
 export function parseInput(raw, { min = 0, max = Infinity, allowZero = false, decimals = Infinity } = {}) {
   const text = String(raw ?? '').trim().replace(/,/g, '');
   if (text === '') return { value: null, error: null };
-  if (!/^\d*\.?\d+$/.test(text)) return { value: null, error: '请输入数字' };
+  if (!/^-?\d*\.?\d+$/.test(text)) return { value: null, error: '请输入数字' };
   if ((text.split('.')[1] || '').length > decimals) return { value: null, error: `最多 ${decimals} 位小数` };
   const n = Number(text);
   if (!Number.isFinite(n)) return { value: null, error: '请输入数字' };

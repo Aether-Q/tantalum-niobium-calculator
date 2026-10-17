@@ -25,6 +25,8 @@ function fmt(n, d = 2) {
 
 function setNum(el, value, d = 2, placeholder = '—') {
   if (el._raf) cancelAnimationFrame(el._raf);
+  clearTimeout(el._done);
+  el._raf = null;
   const prev = el._v;
   el._v = value;
   if (value == null) { el.textContent = placeholder; el.classList.add('pending'); return; }
@@ -32,18 +34,21 @@ function setNum(el, value, d = 2, placeholder = '—') {
   const animate = el.hasAttribute('data-anim') && typeof prev === 'number' && prev !== value && !reduceMotion.matches;
   if (!animate) { el.textContent = fmt(value, d); return; }
   const start = performance.now(), dur = 400;
+  const finish = () => {
+    if (el._raf) cancelAnimationFrame(el._raf);
+    clearTimeout(el._done);
+    el._raf = null;
+    el.textContent = fmt(value, d); // 结束值精确等于计算结果
+  };
   const step = (t) => {
     const p = Math.min(1, (t - start) / dur);
-    const e = 1 - Math.pow(1 - p, 3);
-    if (p < 1) {
-      el.textContent = fmt(prev + (value - prev) * e, d);
-      el._raf = requestAnimationFrame(step);
-    } else {
-      el.textContent = fmt(value, d); // 结束值精确等于计算结果
-      el._raf = null;
-    }
+    if (p >= 1) return finish();
+    el.textContent = fmt(prev + (value - prev) * (1 - Math.pow(1 - p, 3)), d);
+    el._raf = requestAnimationFrame(step);
   };
   el._raf = requestAnimationFrame(step);
+  // 浏览器在后台暂停动画帧时，仍保证按时写入最终值，避免截到旧数字
+  el._done = setTimeout(finish, dur + 50);
 }
 
 // ---------- 输入读取 ----------

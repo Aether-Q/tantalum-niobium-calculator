@@ -90,7 +90,8 @@ test('AC07 非法输入给出提示，边界值可用', () => {
   assert.ok(parseInput('51', g).error);
   assert.equal(parseInput('1', g).value, 1);
   assert.equal(parseInput('50', g).value, 50);
-  assert.ok(parseInput('-2').error);
+  assert.equal(parseInput('-2').error, '必须大于 0');
+  assert.equal(parseInput('-1', { allowZero: true }).error, '不能为负数');
   assert.ok(parseInput('0').error);
   assert.ok(parseInput('abc').error);
   assert.equal(parseInput('2.35').value, 2.35);
