@@ -7,7 +7,7 @@ const NOW_ISO = new Date(NOW).toISOString();
 const OLD_TIME = '2026-10-16T04:00:00.000Z';
 const smmRecord = (overrides = {}) => ({value: 210, unit: 'USD/lb', sourceDate: '2026-10-16',
   status: 'ok', lastSuccessAt: OLD_TIME, lastAttemptAt: OLD_TIME, ...overrides});
-const fxRecord = (overrides = {}) => ({value: 6.9, base: 'USD', quote: 'CNY',
+const fxRecord = (overrides = {}) => ({value: 6.9, base: 'USD', quote: 'CNY', source: 'boc', rateType: 'spot_sell',
   sourceUpdatedAt: OLD_TIME, nextUpdateAt: '2026-10-17T05:00:00.000Z',
   status: 'ok', lastSuccessAt: OLD_TIME, lastAttemptAt: OLD_TIME, ...overrides});
 
@@ -29,9 +29,7 @@ function memoryKv(initial = {}) {
 
 const json = payload => new Response(JSON.stringify(payload), {headers: {'content-type': 'application/json'}});
 const smmResponse = rows => json({code: 0, data: rows});
-const fxResponse = (overrides = {}) => json({result: 'success', base_code: 'USD', rates: {CNY: 6.8},
-  time_last_update_unix: Date.parse('2026-10-17T02:00:00Z') / 1000,
-  time_next_update_unix: Date.parse('2026-10-18T02:00:00Z') / 1000, ...overrides});
+const fxResponse = () => bocResponse();
 
 // Each stub permits at most one call; unexpected URLs or extra requests fail the test.
 function fetchOnce(expectedUrl, response) {
@@ -51,9 +49,34 @@ function fetchOnce(expectedUrl, response) {
 }
 
 const SMM_URL = 'https://hq.smm.cn/ajax/spot/history/202504100001/2026-10-17/2026-10-17';
-const FX_URL = 'https://open.er-api.com/v6/latest/USD';
+const FX_URL = 'https://www.boc.cn/sourcedb/whpj/';
 const noFetch = async () => { assert.fail('Unexpected upstream request'); };
 const options = (kv, fetch) => ({kv, fetch, now: () => NOW});
+
+const bocHtml = (row = '<td>美元</td><td>667.68</td><td>666.00</td><td>670.49</td><td>671.11</td><td>672.20</td><td class="pjrq">2026/10/17 11:59:00</td><td>11:59:00</td>') =>
+  `<table id="priceTable"><tr><th>货币名称</th><th>现汇买入价</th><th>现钞买入价</th><th>现汇卖出价</th><th>现钞卖出价</th><th>中行折算价</th><th>发布日期</th><th>发布时间</th></tr><tr>${row}</tr></table>本汇率表单位为100外币换算人民币`;
+const bocResponse = html => new Response(html ?? bocHtml(), {headers: {'content-type': 'text/html; charset=utf-8'}});
+
+test('BOC USD spot selling per 100 USD becomes CNY per USD, with the original Beijing publication time', async () => {
+  const kv = memoryKv();
+  const stub = fetchOnce('https://www.boc.cn/sourcedb/whpj/', () => bocResponse());
+  const record = await updateFx(options(kv, stub.fetch));
+  assert.equal(stub.calls, 1);
+  assert.deepEqual(record, {value: 6.7049, base: 'USD', quote: 'CNY', source: 'boc', rateType: 'spot_sell',
+    sourceUpdatedAt: '2026-10-17T03:59:00.000Z', nextUpdateAt: '2026-10-18T04:00:00.000Z',
+    status: 'ok', lastSuccessAt: NOW_ISO, lastAttemptAt: NOW_ISO});
+});
+
+test('Legacy non-bank FX is hidden by the API and is replaced even before its old cache expires', async () => {
+  const previous = fxRecord({source: undefined, rateType: undefined});
+  const kv = memoryKv({fx: previous});
+  const response = await worker.fetch(new Request('https://calculator.test/api/market'), {MARKET: kv});
+  assert.deepEqual((await response.json()).fx, {value: null, status: 'none'});
+  const stub = fetchOnce(FX_URL, () => bocResponse());
+  const record = await updateFx(options(kv, stub.fetch));
+  assert.equal(record.value, 6.7049);
+  assert.equal(record.source, 'boc');
+});
 
 test('SMM stores the newest valid quote even when it is not last, with source metadata', async () => {
   const kv = memoryKv();
@@ -162,15 +185,15 @@ test('SMM repeated identical rows are accepted and an old source date remains un
 });
 
 test('FX skips before nextUpdateAt and refreshes at that exact time', async () => {
-  const kv = memoryKv({fx: fxRecord()});
+  const kv = memoryKv({fx: fxRecord({sourceUpdatedAt: '2026-10-17T03:00:00.000Z'})});
   await updateFx(options(kv, noFetch));
   assert.deepEqual(kv.writes, []);
   const stub = fetchOnce(FX_URL, () => fxResponse());
   const at = Date.parse('2026-10-17T05:00:00Z');
   await updateFx({kv, fetch: stub.fetch, now: () => at});
   assert.equal(stub.calls, 1);
-  assert.deepEqual(await kv.get('fx', 'json'), {value: 6.8, base: 'USD', quote: 'CNY',
-    sourceUpdatedAt: '2026-10-17T02:00:00.000Z', nextUpdateAt: '2026-10-18T02:00:00.000Z',
+  assert.deepEqual(await kv.get('fx', 'json'), {value: 6.7049, base: 'USD', quote: 'CNY', source: 'boc', rateType: 'spot_sell',
+    sourceUpdatedAt: '2026-10-17T03:59:00.000Z', nextUpdateAt: '2026-10-18T04:00:00.000Z',
     status: 'ok', lastSuccessAt: new Date(at).toISOString(), lastAttemptAt: new Date(at).toISOString()});
 });
 
@@ -183,13 +206,64 @@ test('FX status failed triggers a refresh even before nextUpdateAt', async () =>
   assert.equal('error' in await kv.get('fx', 'json'), false);
 });
 
+test('BOC future publication times and regressed quotes preserve the last bank quote as failed', async () => {
+  const previous = fxRecord({nextUpdateAt: NOW_ISO});
+  for (const date of ['2026/10/18', '2026/10/15']) {
+    const kv = memoryKv({fx: previous});
+    const record = await updateFx(options(kv, async () => bocResponse(bocHtml().replace('2026/10/17', date))));
+    assert.equal(record.value, previous.value);
+    assert.equal(record.sourceUpdatedAt, previous.sourceUpdatedAt);
+    assert.equal(record.status, 'failed');
+    assert.equal(record.lastSuccessAt, OLD_TIME);
+  }
+});
+
+test('A bank quote still dated yesterday is retried at 13:00, while a current-day success is cached', async () => {
+  const kv = memoryKv();
+  await updateFx(options(kv, async () => bocResponse(bocHtml().replace('2026/10/17', '2026/10/16'))));
+  const stub = fetchOnce(FX_URL, () => bocResponse());
+  const record = await updateFx({kv, fetch: stub.fetch, now: () => Date.parse('2026-10-17T05:00:00Z')});
+  assert.equal(stub.calls, 1);
+  assert.equal(record.sourceUpdatedAt, '2026-10-17T03:59:00.000Z');
+  await updateFx({kv, fetch: noFetch, now: () => Date.parse('2026-10-17T05:01:00Z')});
+});
+
+test('The next Beijing noon fetches a new publication even when its exchange rate is unchanged', async () => {
+  const kv = memoryKv();
+  await updateFx(options(kv, async () => bocResponse()));
+  await updateFx({kv, fetch: noFetch, now: () => Date.parse('2026-10-17T05:00:00Z')});
+  const at = Date.parse('2026-10-18T04:00:00Z');
+  const record = await updateFx({kv, fetch: async () => bocResponse(bocHtml().replace('2026/10/17', '2026/10/18')), now: () => at});
+  assert.equal(record.value, 6.7049);
+  assert.equal(record.sourceUpdatedAt, '2026-10-18T03:59:00.000Z');
+  assert.equal(record.lastSuccessAt, '2026-10-18T04:00:00.000Z');
+  assert.equal(record.nextUpdateAt, '2026-10-19T04:00:00.000Z');
+});
+
+test('A failed bank migration exposes no old reference rate and preserves the failed status', async () => {
+  const kv = memoryKv({fx: fxRecord({source: undefined, rateType: undefined})});
+  await updateFx(options(kv, async () => new Response('Unavailable', {status: 503})));
+  const response = await worker.fetch(new Request('https://calculator.test/api/market'), {MARKET: kv});
+  assert.deepEqual((await response.json()).fx, {value: null, source: 'boc', rateType: 'spot_sell',
+    status: 'failed', lastAttemptAt: NOW_ISO, error: 'http_503'});
+});
+
+test('A conflicting bank value at the same publication time keeps the original value', async () => {
+  const previous = fxRecord({sourceUpdatedAt: '2026-10-17T03:59:00.000Z', nextUpdateAt: NOW_ISO});
+  const record = await updateFx(options(memoryKv({fx: previous}), async () => bocResponse()));
+  assert.deepEqual(record, {...previous, status: 'failed', lastAttemptAt: NOW_ISO, error: 'conflict'});
+});
+
 const fxFailures = [
   ['timeout', () => { throw new DOMException('Timed out', 'TimeoutError'); }],
   ['http_503', () => new Response('Unavailable', {status: 503})],
-  ['bad_response', () => fxResponse({result: 'error'})],
-  ['bad_response', () => fxResponse({rates: {CNY: 'Infinity'}})],
-  ['bad_response', () => fxResponse({base_code: 'EUR'})],
-  ['bad_timestamp', () => fxResponse({time_next_update_unix: null})]
+  ['bad_response', () => bocResponse('<html>Login or verification required</html>')],
+  ['bad_response', () => bocResponse(bocHtml().replace('670.49', 'Infinity'))],
+  ['bad_response', () => bocResponse(bocHtml().replace('<td>美元</td>', '<td>欧元</td>'))],
+  ['bad_timestamp', () => bocResponse(bocHtml().replace('2026/10/17', '2026/02/30'))],
+  ['bad_response', () => bocResponse(bocHtml().replace('<th>现汇卖出价</th>', '<th>其他卖出价</th>'))],
+  ['bad_response', () => bocResponse(bocHtml().replace('100外币', '1外币'))],
+  ['bad_response', () => bocResponse(bocHtml().replace('670.49', '0'))]
 ];
 for (const [index, [error, response]] of fxFailures.entries()) {
   test(`FX failure ${index + 1} (${error}) retains its original value, source and success times`, async () => {
@@ -214,7 +288,7 @@ test('SMM upstream failure does not stop a successful FX update', async () => {
   assert.deepEqual(calls.sort(), [SMM_URL, FX_URL].sort());
   assert.equal((await kv.get('smm', 'json')).value, null);
   assert.equal((await kv.get('smm', 'json')).error, 'http_403');
-  assert.equal((await kv.get('fx', 'json')).value, 6.8);
+  assert.equal((await kv.get('fx', 'json')).value, 6.7049);
   assert.equal((await kv.get('fx', 'json')).status, 'ok');
 });
 

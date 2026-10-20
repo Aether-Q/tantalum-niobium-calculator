@@ -194,7 +194,7 @@
       <h4>数据来源</h4>
       <ul>
         <li>上海有色：钽矿（Ta≥30%）中国到岸价均价，美元/磅（<a href="https://hq.smm.cn/other-minor-metals/category/202504100001" target="_blank" rel="noopener">SMM 品种页</a>）。每日北京时间 12:00 检查一次，未取得当天价则 13:00 补试一次。<span id="ex-smm"></span></li>
-        <li>汇率：ExchangeRate-API 每日参考汇率，不是银行成交汇率。<a href="https://www.exchangerate-api.com" target="_blank" rel="noopener">Rates By Exchange Rate API</a><span id="ex-fx"></span></li>
+        <li>汇率：<a href="https://www.boc.cn/sourcedb/whpj/" target="_blank" rel="noopener">中国银行外汇牌价</a>中的美元现汇卖出价，每日读取；官网每 100 美元牌价除以 100，换算为 1 美元兑人民币。用于采购方购汇成本参考，实际以付款银行成交汇率为准，不含汇款费用。<span id="ex-fx"></span></li>
         <li>页面始终显示真实报价日期；周末、节假日或尚未发布时沿用最近一次报价，不标为今日。</li>
         <li>自动取数失败时保留上次有效值及原日期；可随时切换“手动”自行输入，手动值不会被自动刷新覆盖。</li>
       </ul>

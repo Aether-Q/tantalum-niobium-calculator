@@ -175,12 +175,12 @@ function renderQuote(key) {
   } else if (!has) {
     meta = key === 'smm' ? '未获取到报价，请切换“手动”输入今日 SMM 价格' : '未获取到汇率，请切换“手动”输入';
   } else {
-    const date = key === 'smm' ? a.sourceDate : (a.sourceUpdatedAt || '').slice(0, 10);
+    const date = key === 'smm' ? a.sourceDate : bjTime(a.sourceUpdatedAt).slice(0, 10);
     const label = key === 'smm' ? '报价日期' : '数据时间';
     const shown = key === 'smm' ? date : bjTime(a.sourceUpdatedAt) + '（北京时间）';
-    meta = `${label} ${shown || '—'}`;
+    meta = `${key === 'fx' ? '中国银行 · 现汇卖出价 · ' : ''}${label} ${shown || '—'}`;
     if (a.status === 'failed') meta += ' · 更新失败，显示最近有效值';
-    else if (key === 'smm' && date && date !== bjToday()) meta += ' · 最新已发布报价';
+    else if (date && date !== bjToday()) meta += ' · 最新已发布报价';
   }
   $('[data-role="meta"]', box).textContent = meta;
 }
@@ -188,7 +188,7 @@ function renderQuote(key) {
 function renderExplainSources() {
   const s = state.market.smm.auto, f = state.market.fx.auto;
   $('#ex-smm').textContent = s && s.lastSuccessAt ? ` 最近成功获取：${bjTime(s.lastSuccessAt)}（北京时间）。` : '';
-  $('#ex-fx').textContent = f && f.lastSuccessAt ? `；最近成功获取：${bjTime(f.lastSuccessAt)}（北京时间）。` : '';
+  $('#ex-fx').textContent = f && f.lastSuccessAt ? ` 最近成功获取：${bjTime(f.lastSuccessAt)}（北京时间）。` : '';
 }
 
 async function loadMarket() {

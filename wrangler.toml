@@ -9,6 +9,7 @@ run_worker_first = ["/api/*"]
 
 [[kv_namespaces]]
 binding = "MARKET"
+# Replace with your own Cloudflare KV namespace ID before deploying.
 id = "REPLACE_WITH_KV_ID"
 
 [triggers]
