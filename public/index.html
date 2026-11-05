@@ -107,7 +107,7 @@
   <div class="compare-head">
     <div>
       <h2>本批次价格对比</h2>
-      <p class="meta">吨度价固定为人民币/吨度；单价输入均为不含税美元/品位</p>
+      <p class="meta">吨度价固定为人民币/吨度；单价可按美元/品位（不含税）或元/吨度（可选含税/不含税）输入</p>
     </div>
     <div class="toggles">
       <div class="seg" role="group" aria-label="税口径" id="seg-tax">
@@ -137,9 +137,17 @@
       <div class="hero-row"><span class="label">每吨价</span><span class="big num" data-k="perTon" data-anim>—</span><span class="unit" data-u="perTon"></span></div>
       <ul class="rows">
         <li class="row-input">
+          <div class="seg seg-sm price-mode" role="group" aria-label="合同单价输入方式">
+            <button type="button" data-price-mode="usd" aria-pressed="true">美元/品位</button>
+            <button type="button" data-price-mode="cny" aria-pressed="false">元/吨度</button>
+          </div>
           <label class="label" for="in-a">每品位单价</label>
           <span class="field field-edit"><input id="in-a" class="num" inputmode="decimal" placeholder="输入不含税单价"></span>
-          <span class="unit">美元/品位</span>
+          <span class="unit" data-role="price-unit">美元/品位</span>
+          <div class="seg seg-sm price-tax" data-role="price-tax" role="group" aria-label="合同吨度价税口径" hidden>
+            <button type="button" data-price-tax="inc" aria-pressed="true">含税</button>
+            <button type="button" data-price-tax="ex" aria-pressed="false">不含税</button>
+          </div>
           <span class="sub num" data-k="perGradeInc"></span>
           <p class="error" id="err-a" hidden></p>
         </li>
@@ -157,9 +165,17 @@
       <div class="hero-row"><span class="label">每吨价</span><span class="big num" data-k="perTon" data-anim>—</span><span class="unit" data-u="perTon"></span></div>
       <ul class="rows">
         <li class="row-input">
+          <div class="seg seg-sm price-mode" role="group" aria-label="我方单价输入方式">
+            <button type="button" data-price-mode="usd" aria-pressed="true">美元/品位</button>
+            <button type="button" data-price-mode="cny" aria-pressed="false">元/吨度</button>
+          </div>
           <label class="label" for="in-c">每品位单价</label>
           <span class="field field-edit"><input id="in-c" class="num" inputmode="decimal" placeholder="输入不含税单价"></span>
-          <span class="unit">美元/品位</span>
+          <span class="unit" data-role="price-unit">美元/品位</span>
+          <div class="seg seg-sm price-tax" data-role="price-tax" role="group" aria-label="我方吨度价税口径" hidden>
+            <button type="button" data-price-tax="inc" aria-pressed="true">含税</button>
+            <button type="button" data-price-tax="ex" aria-pressed="false">不含税</button>
+          </div>
           <span class="sub num" data-k="perGradeInc"></span>
           <p class="error" id="err-c" hidden></p>
         </li>
@@ -170,7 +186,7 @@
 
     <section class="card profit" id="profit" aria-label="预期毛利">
       <h3>本批预期毛利</h3>
-      <div class="profit-main"><span class="big num" id="pf-batch" data-anim>—</span><span class="unit">美元</span></div>
+      <div class="profit-main"><span class="big num" id="pf-batch" data-anim>—</span><span class="unit" id="pf-batch-unit">美元</span></div>
       <p class="approx num" id="pf-batch-cny"></p>
       <div class="profit-sub">
         <span class="label">每吨毛利</span>

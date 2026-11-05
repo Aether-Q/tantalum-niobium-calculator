@@ -5,6 +5,13 @@ export const LB_PER_KG = 2.2046226218487757;
 
 const isPos = (n) => Number.isFinite(n) && n > 0;
 
+// 人民币吨度价转换为不含税美元/品位；税率 0 有效。
+export function perGradeFromTonDegree(Q, { R, v, taxIncluded } = {}) {
+  if (!isPos(Q) || !isPos(R) || !Number.isFinite(v) || v < 0 || v > 1) return null;
+  const X = Q / (taxIncluded ? 1 + v : 1) / 1000 / R;
+  return isPos(X) ? X : null;
+}
+
 // 输入校验：返回 { value, error }，空值 value 为 null 且无错误
 export function parseInput(raw, { min = 0, max = Infinity, allowZero = false, decimals = Infinity } = {}) {
   const text = String(raw ?? '').trim().replace(/,/g, '');

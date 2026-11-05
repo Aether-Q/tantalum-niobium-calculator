@@ -1,4 +1,4 @@
-import { computeAll, parseInput } from './calc.js';
+import { computeAll, parseInput, perGradeFromTonDegree } from './calc.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -9,6 +9,10 @@ const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const state = {
   tax: 'ex',
   cur: 'usd',
+  prices: {
+    a: { mode: 'usd', taxIncluded: true },
+    c: { mode: 'usd', taxIncluded: true },
+  },
   market: {
     smm: { mode: 'auto', auto: null },
     fx: { mode: 'auto', auto: null },
@@ -72,15 +76,63 @@ function quoteValue(key) {
 
 function readInputs() {
   const v = readField($('#in-tax'), $('#err-tax'), { allowZero: true, max: 100, min: 0 });
-  return {
+  const inp = {
     P: quoteValue('smm'),
     R: quoteValue('fx'),
     v: v == null ? null : v / 100,
     G: readField($('#in-grade'), $('#err-grade'), GRADE),
     T: readField($('#in-ton'), $('#err-ton'), {}),
-    A: readField($('#in-a'), $('#err-a'), {}),
-    C: readField($('#in-c'), $('#err-c'), {}),
   };
+  for (const key of ['a', 'c']) {
+    const raw = readField($(`#in-${key}`), $(`#err-${key}`), {});
+    const price = state.prices[key];
+    inp[key.toUpperCase()] = price.mode === 'usd' ? raw
+      : perGradeFromTonDegree(raw, { ...inp, taxIncluded: price.taxIncluded });
+  }
+  return inp;
+}
+
+function renderPriceInput(key, inp) {
+  const price = state.prices[key];
+  const row = $(`#in-${key}`).closest('.row-input');
+  const tonDegree = price.mode === 'cny';
+  $('label.label', row).textContent = tonDegree ? '吨度价' : '每品位单价';
+  $(`#in-${key}`).placeholder = tonDegree ? '如 40150' : '输入不含税单价';
+  $('[data-role="price-unit"]', row).textContent = tonDegree ? '元/吨度' : '美元/品位';
+  $('[data-role="price-tax"]', row).hidden = !tonDegree;
+  $$('[data-price-mode]', row).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.priceMode === price.mode)));
+  $$('[data-price-tax]', row).forEach(b => b.setAttribute('aria-pressed', String((b.dataset.priceTax === 'inc') === price.taxIncluded)));
+  if (tonDegree) {
+    const X = inp[key.toUpperCase()];
+    $('[data-k="perGradeInc"]', row).textContent = !$(`#in-${key}`).value.trim() ? ''
+      : !(Number.isFinite(inp.R) && inp.R > 0)
+      ? '需要汇率才能换算'
+      : inp.v == null ? '需要有效税率才能换算'
+      : X == null ? '' : `≈ ${fmt(X, 4)} 美元/品位（不含税）`;
+  }
+}
+
+function switchPriceInput(key, mode, taxIncluded) {
+  const price = state.prices[key];
+  if (price.mode === mode && price.taxIncluded === taxIncluded) return;
+  // 税口径是对当前数字的重新解释，不换算输入值。
+  if (price.mode === mode) {
+    price.taxIncluded = taxIncluded;
+    if (price.original && price.original.mode === mode) price.original.taxIncluded = taxIncluded;
+    recalc();
+    return;
+  }
+  const inp = readInputs();
+  const X = inp[key.toUpperCase()];
+  const ready = perGradeFromTonDegree(1, { ...inp, taxIncluded }) != null;
+  const value = X != null && ready ? (mode === 'usd' ? X : X * 1000 * inp.R * (taxIncluded ? 1 + inp.v : 1)) : null;
+  price.mode = mode;
+  price.taxIncluded = taxIncluded;
+  const original = price.original;
+  $(`#in-${key}`).value = original && original.mode === mode && original.taxIncluded === taxIncluded
+    ? original.text
+    : Number.isFinite(value) && value > 0 ? value.toFixed(mode === 'usd' ? 4 : 2) : '';
+  recalc();
 }
 
 // ---------- 渲染 ----------
@@ -107,7 +159,11 @@ function renderGroup(root, g, inp) {
 }
 
 function renderProfit(m, inp) {
-  setNum($('#pf-batch'), m ? m.batchUsd : null);
+  const needsWeight = m != null && !(Number.isFinite(inp.T) && inp.T > 0);
+  const batch = $('#pf-batch');
+  setNum(batch, m ? m.batchUsd : null, 2, needsWeight ? '请输入净重' : '—');
+  batch.classList.toggle('needs-weight', needsWeight);
+  $('#pf-batch-unit').hidden = needsWeight;
   setNum($('#pf-ton'), m ? m.perTonUsd : null);
   $('#pf-batch-cny').textContent = m && m.batchCny != null ? `≈ ${fmt(m.batchCny)} 人民币` : '';
   $('#pf-ton-cny').textContent = m && m.perTonCny != null ? `≈ ${fmt(m.perTonCny)} 人民币/吨` : '';
@@ -140,6 +196,7 @@ function recalc() {
   renderGroup($('#g-smm'), ctx(r.smm), inp);
   renderGroup($('#g-contract'), ctx(r.contract), inp);
   renderGroup($('#g-ours'), ctx(r.ours), inp);
+  for (const key of ['a', 'c']) renderPriceInput(key, inp);
   renderProfit(r.margin, inp);
   renderKg(inp.T);
   syncGradeUI(inp.G);
@@ -223,9 +280,25 @@ async function loadMarket() {
 function bind() {
   const form = $('#calc');
   form.addEventListener('input', (e) => {
+    for (const key of ['a', 'c']) {
+      if (e.target.id === `in-${key}`) {
+        const price = state.prices[key];
+        price.original = { text: e.target.value, mode: price.mode, taxIncluded: price.taxIncluded };
+      }
+    }
     if (e.target.id === 'in-grade-range') $('#in-grade').value = Number(e.target.value).toFixed(2);
     recalc();
   });
+
+  for (const key of ['a', 'c']) {
+    $(`#in-${key}`).closest('.row-input').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const price = state.prices[key];
+      if (b.dataset.priceMode) switchPriceInput(key, b.dataset.priceMode, price.taxIncluded);
+      if (b.dataset.priceTax) switchPriceInput(key, price.mode, b.dataset.priceTax === 'inc');
+    });
+  }
 
   const chips = $('#chips');
   for (let g = 5; g <= 50; g += 5) {
@@ -298,5 +371,6 @@ loadMarket();
 function resetForm() {
   // 防止浏览器自动回填上次的输入
   $('#calc').reset();
+  for (const key of ['a', 'c']) state.prices[key] = { mode: 'usd', taxIncluded: true };
   $('#in-tax').value = '13';
 }

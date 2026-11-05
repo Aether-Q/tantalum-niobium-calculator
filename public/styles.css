@@ -176,7 +176,9 @@ input[type="range"]::-moz-range-thumb {
 .rows .v { font-size: 18px; font-weight: 500; }
 .rows .unit { text-align: right; min-width: 84px; }
 .hero-row .unit { white-space: normal; }
-.row-input .field { width: 100%; max-width: 220px; height: 40px; }
+.row-input .price-mode { grid-column: 1 / -1; justify-self: start; margin-bottom: 6px; }
+.row-input .price-tax { grid-column: 2 / -1; justify-self: start; margin: 4px 0; max-width: 100%; flex-wrap: wrap; }
+.row-input .field { min-width: 0; width: 100%; max-width: 220px; height: 40px; }
 .row-input .sub { grid-column: 2 / -1; font-size: 13px; color: var(--ink-2); margin-top: -2px; }
 .row-input .sub:empty { display: none; }
 .row-input .error { grid-column: 2 / -1; margin-top: 0; }
@@ -191,6 +193,7 @@ input[type="range"]::-moz-range-thumb {
 .profit .unit, .profit .label, .profit .approx, .profit .note { color: rgba(255, 255, 255, .75); }
 .profit-main { display: flex; align-items: baseline; gap: 10px; }
 .profit-main .big { font-size: 46px; }
+.profit-main .big.needs-weight { font-size: 24px; color: #fff; }
 .profit .approx { font-size: 15px; margin-top: 2px; }
 .profit-sub {
   display: grid; grid-template-columns: 96px 1fr; align-items: baseline; gap: 8px;
@@ -251,6 +254,7 @@ input[type="range"]::-moz-range-thumb {
   .row-input .unit { grid-column: 2; }
   .profit-main { flex-wrap: wrap; }
   .profit-main .big { font-size: clamp(28px, 10vw, 38px); }
+  .profit-main .big.needs-weight { font-size: clamp(18px, 6.3vw, 20px); }
   .profit-sub { grid-template-columns: 1fr; }
   .mid { font-size: clamp(20px, 7vw, 26px); }
   .field-inline { width: 150px; }
